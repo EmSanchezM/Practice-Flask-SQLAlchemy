@@ -35,12 +35,15 @@ def update_user(id):
 
     name = request.json['name']
     email = request.json['email']
-    password = request.json['password']
     logindate = datetime.today()
 
     user.name = name
     user.email = email 
-    user.password = password
+    
+    # Solo actualizar la contraseña si se proporciona
+    if 'password' in request.json and request.json['password']:
+        user.set_password(request.json['password'])
+    
     user.logindate = logindate
 
     db.session.commit()
@@ -55,6 +58,32 @@ def delete_user(id):
     db.session.commit()
 
     return user_schema.jsonify(user)
+
+@app.route('/users/login', methods=['POST'])
+def login_user():
+    """Endpoint para autenticar usuarios"""
+    try:
+        email = request.json.get('email')
+        password = request.json.get('password')
+
+        if not email or not password:
+            return jsonify({'error': 'Email y contraseña son requeridos'}), 400
+
+        user = Users.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+            # Actualizar fecha de login
+            user.logindate = datetime.today()
+            db.session.commit()
+            return jsonify({
+                'message': 'Login exitoso',
+                'user': user_schema.dump(user)
+            }), 200
+        else:
+            return jsonify({'error': 'Email o contraseña incorrectos'}), 401
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/activities', methods=['POST'])
 def addActivity():
@@ -83,11 +112,11 @@ def getActivity(id):
 def update_activity(id):
     activity = Activity.query.get(id)
 
-    activity = request.json['activity']
+    activity_text = request.json['activity']
     acDate = datetime.today()
     user_id = request.json['user_id']
 
-    activity.activity = activity
+    activity.activity = activity_text
     activity.acDate = acDate
     activity.user_id = user_id
 
@@ -177,7 +206,7 @@ def getProvider(id):
     provider = Providers.query.get(id)
     return provider_Schema.jsonify(provider)
 
-@app.route('/providers/<id>')
+@app.route('/providers/<id>', methods=['PUT'])
 def update_provider(id):
     provider = Providers.query.get(id)
 
@@ -193,7 +222,7 @@ def update_provider(id):
 
     return provider_Schema.jsonify(provider)
 
-@app.route('/providers/<id>')
+@app.route('/providers/<id>', methods=['DELETE'])
 def delete_provider(id):
     provider = Providers.query.get(id)
     db.session.delete(provider)
@@ -291,7 +320,7 @@ def update_order(id):
     order.order_date = order_date
     order.pay_date = pay_date
     order.paymentMode = paymentMode
-    order.commet = comment
+    order.comment = comment
     order.customer_id = customer_id
     order.user_id = user_id
 
@@ -444,7 +473,7 @@ def update_inventory(id):
 def delete_inventory(id):
     inventory = Inventory.query.get(id)
     db.session.delete(inventory)
-    ds.session.commit()
+    db.session.commit()
 
     return inventory_Schema.jsonify(inventory)
 

@@ -1,4 +1,5 @@
 from config import db, ma
+import bcrypt
 
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -13,15 +14,24 @@ class Users(db.Model):
     def __init__(self, name, email, password, logindate):
         self.name = name
         self.email = email
-        self.password = password
+        self.set_password(password)
         self.logindate = logindate
+
+    def set_password(self, password):
+        """Hashea la contraseña antes de guardarla"""
+        self.password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    def check_password(self, password):
+        """Verifica si la contraseña proporcionada coincide con el hash almacenado"""
+        return bcrypt.checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
 
     def __repr__(self):
         return '<User %r>' % self.name
 
 class UserSchema(ma.Schema):
     class Meta:
-        fields = ('id', 'name', 'email', 'password', 'logindate')
+        # Removemos 'password' de los campos para no exponerlo en las respuestas
+        fields = ('id', 'name', 'email', 'logindate')
 
 class Activity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -201,5 +211,3 @@ providers_Schema = ProviderSchema(many=True)
 
 inventory_Schema = InventorySchema()
 inventories_Schema = InventorySchema(many=True)
-
-db.create_all()
