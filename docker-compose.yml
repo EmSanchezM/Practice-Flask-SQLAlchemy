@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Servicio de base de datos MySQL
+  db:
+    image: mysql:8.0
+    container_name: farmacia_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: farmacia
+      MYSQL_USER: farmacia_user
+      MYSQL_PASSWORD: farmacia_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - farmacia_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Servicio de la aplicación Flask
+  web:
+    build: .
+    container_name: farmacia_app
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: farmacia
+      DB_USER: farmacia_user
+      DB_PASSWORD: farmacia_pass
+      FLASK_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - farmacia_network
+    volumes:
+      - ./app:/app/app
+
+networks:
+  farmacia_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
